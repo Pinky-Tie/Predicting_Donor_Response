@@ -1,11 +1,14 @@
 import pandas as pd
-from preprocessing_pipeline.preprocessing_cleaning_invalid import *
-from preprocessing_pipeline.preprocessing_encoding import *
-from preprocessing_pipeline.preprocessing_feature_engineering import *
-from preprocessing_pipeline.preprocessing_missing_values import *
-from preprocessing_pipeline.preprocessing_scaling import *
-from preprocessing_pipeline.preproccessing_outliers import *
+from .preprocessing_pipeline.preprocessing_cleaning_invalid import *
+from .preprocessing_pipeline.preprocessing_encoding import *
+from .preprocessing_pipeline.preprocessing_feature_engineering import *
+from .preprocessing_pipeline.preprocessing_missing_values import *
+from .preprocessing_pipeline.preprocessing_scaling import *
+from .preprocessing_pipeline.preproccessing_outliers import *
 
+
+def log_preprocessing_step(step: str) -> None:
+    print(f"[preprocess_data] {step}")
 
 
 def preprocess_data(data_original: pd.DataFrame,
@@ -27,29 +30,105 @@ def preprocess_data(data_original: pd.DataFrame,
     """
 
     # 0 - copy data
+    log_preprocessing_step("Copying input data")
     data = data_original.copy()
-    # 1 - Handle data inconsistencies and invalid values
 
+    # 1 - Handle data inconsistencies and invalid values
+    log_preprocessing_step("Forcing incoherent values to null")
     data = force_incoherence_to_null(data)
 
     # 2 - Handle missing values
-    numeric_imputer = build_numeric_imputer(strategy="median")
-    categorical_imputer = build_categorical_imputer(strategy="most_frequent")
+    log_preprocessing_step("Building imputers for missing values")
 
-    ### use inputers
-    outlier_columns_considered = [detect_outlier_columns(data, IQR_value ) if outlier_columns == None else outlier_columns ]
+
+    # to get the dict below run:
+    # def get_missing_columns(data: pd.DataFrame) -> dict[str, str]:
+    # """
+    # Return the name and dtype of all columns with missing values.
+
+    # Parameters
+    # ----------
+    # data : pd.DataFrame
+    #     Input dataframe to inspect.
+
+    # Returns
+    # -------
+    # dict[str, str]
+    #     Mapping of {column_name: dtype_string} for columns with any NaN.
+    # """
+    # has_missing = data.isnull().any()
+    # missing_cols = has_missing[has_missing].index
+
+    # return {col: str(data[col].dtype) for col in missing_cols}
+    #     method_map = {
+    #     col: "knn" if dtype == "float64" else "most_frequent"
+    #     for col, dtype in missing.items()
+    # }
+
+    data = build_categorical_imputer(data, dict = {
+    'CARD_PROM_12': 'knn',
+    'CHILDREN': 'knn',
+    'DONOR_AGE': 'knn',
+    'DONOR_GENDER': 'most_frequent',
+    'FILE_CARD_GIFT': 'knn',
+    'FREQUENCY_STATUS_97NK': 'knn',
+    'HOME_OWNER': 'most_frequent',
+    'INCOME_GROUP': 'knn',
+    'LAST_GIFT_AMT': 'knn',
+    'LIFETIME_CARD_PROM': 'knn',
+    'LIFETIME_GIFT_AMOUNT': 'knn',
+    'LIFETIME_GIFT_COUNT': 'knn',
+    'LIFETIME_MAX_GIFT_AMT': 'knn',
+    'LIFETIME_MIN_GIFT_AMT': 'knn',
+    'LIFETIME_PROM': 'knn',
+    'MEDIAN_HOME_VALUE': 'knn',
+    'MEDIAN_HOUSEHOLD_INCOME': 'knn',
+    'MONTHS_SINCE_FIRST_GIFT': 'knn',
+    'MONTHS_SINCE_LAST_GIFT': 'knn',
+    'MONTHS_SINCE_LAST_PROM_RESP': 'knn',
+    'NUMBER_PROM_12': 'knn',
+    'PCT_ATTRIBUTE1': 'knn',
+    'PCT_ATTRIBUTE2': 'knn',
+    'PCT_ATTRIBUTE3': 'knn',
+    'PCT_ATTRIBUTE4': 'knn',
+    'PCT_OWNER_OCCUPIED': 'knn',
+    'PEP_STAR': 'knn',
+    'PER_CAPITA_INCOME': 'knn',
+    'RECENCY_STATUS_96NK': 'most_frequent',
+    'RECENT_AVG_CARD_GIFT_AMT': 'knn',
+    'RECENT_AVG_GIFT_AMT': 'knn',
+    'RECENT_CARD_RESPONSE_COUNT': 'knn',
+    'RECENT_CARD_RESPONSE_PROP': 'knn',
+    'RECENT_RESPONSE_COUNT': 'knn',
+    'RECENT_RESPONSE_PROP': 'knn',
+    'RECENT_STAR_STATUS': 'knn',
+    'SES': 'most_frequent',
+    'URBANICITY': 'most_frequent',
+    'WEALTH_RATING': 'knn',
+    })
+
+    ### use imputers
+    log_preprocessing_step("Detecting outlier columns")
+    outlier_columns_considered = (
+        detect_outlier_columns(data, IQR_value)
+        if outlier_columns is None
+        else outlier_columns
+    )
    
     # 3 - Handle Outliers
+    log_preprocessing_step("Handling outliers")
     if outlier_method == "rescale":
         for col in outlier_columns_considered:
-            data[col] = rescale_outliers(data = data[col], method = "transform")
-    elif outlier_method == "split" :
-        data[col] = split_outlier_cluster(data = outlier_columns_considered, evasive= False)
+            data[col] = rescale_outliers(data=data[col], method="transform")
+    elif outlier_method == "split":
+        split_outlier_cluster(data=data, split_by=outlier_columns_considered, evasive=False)
         
     # 4 - Encode variables
+    log_preprocessing_step("Encoding categorical variables")
+    if encode == "onehot":
+        data = one_hot_encode(data)
+    elif encode == "label":
+        data = label_encode(data)
 
-    # 5 - Feature Engineering
-        
-
-
-    
+    log_preprocessing_step("Preprocessing complete")
+    return data
