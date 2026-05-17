@@ -1,5 +1,6 @@
 # """Imputation builders for numeric and categorical donor features."""
 from __future__ import annotations
+import numpy as np
 import pandas as pd
 from sklearn.impute import KNNImputer
 from sklearn.impute import SimpleImputer
@@ -74,18 +75,23 @@ def impute_columns(data: pd.DataFrame, dict: dict[str, str]) -> pd.DataFrame:
         if method == "min":
             min_val = result[column].min()
             imputer = SimpleImputer(strategy="constant", fill_value=min_val)
-            result[column] = imputer.fit_transform(col_data).ravel()
+            imputed = imputer.fit_transform(col_data).ravel()
 
         elif method == "knn":
             imputer = KNNImputer(n_neighbors=5)
-            result[column] = imputer.fit_transform(col_data).ravel()
+            imputed = imputer.fit_transform(col_data).ravel()
 
         elif method in {"mean", "median", "most_frequent"}:
             imputer = build_numeric_imputer(strategy=method)
-            result[column] = imputer.fit_transform(col_data).ravel()
+            imputed = imputer.fit_transform(col_data).ravel()
 
         elif method == "constant":
             imputer = build_categorical_imputer(strategy="constant")
-            result[column] = imputer.fit_transform(col_data).ravel()
+            imputed = imputer.fit_transform(col_data).ravel()
+
+        if np.issubdtype(np.asarray(imputed).dtype, np.number):
+            imputed = np.round(imputed, 4)
+
+        result[column] = imputed
 
     return result

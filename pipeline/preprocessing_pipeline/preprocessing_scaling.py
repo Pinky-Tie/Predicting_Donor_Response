@@ -1,18 +1,27 @@
 """Numeric scalers for donor response models."""
 from __future__ import annotations
+import numpy as np
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, MinMaxScaler, RobustScaler, StandardScaler
+
+def _round_transformer():
+    return FunctionTransformer(lambda X: np.round(X, 4), validate=False)
+
+
 def build_numeric_scaler(strategy: str = "standard"):
     """Create the numeric scaler used inside a model pipeline."""
     if strategy == "standard":
-        return StandardScaler()
-    if strategy == "minmax":
-        return MinMaxScaler()
-    if strategy == "robust":
-        return RobustScaler()
-    if strategy == "passthrough":
-        return FunctionTransformer(validate=False)
+        scaler = StandardScaler()
+    elif strategy == "minmax":
+        scaler = MinMaxScaler()
+    elif strategy == "robust":
+        scaler = RobustScaler()
+    elif strategy == "passthrough":
+        return _round_transformer()
+    else:
+        raise ValueError(
+            "Unsupported scaling strategy. Choose from "
+            "'standard', 'minmax', 'robust', or 'passthrough'."
+        )
 
-    raise ValueError(
-        "Unsupported scaling strategy. Choose from "
-        "'standard', 'minmax', 'robust', or 'passthrough'."
-    )
+    return make_pipeline(scaler, _round_transformer())

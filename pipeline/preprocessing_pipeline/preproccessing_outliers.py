@@ -57,11 +57,13 @@ def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Serie
     elif method == 'transform':
         skewness = data.dropna().skew()
         if skewness > 0:                         # right tail → compress with log
-            if (data.dropna() <= -1).any():
-                raise ValueError(
-                    "log1p requires all values > -1. "
-                    "Consider shifting the series before applying transform."
-                )
+            non_null = result.dropna()
+            if (non_null <= -1).any():
+                min_val = non_null.min()
+                print(f"Warning: log1p requires values > -1. Shifting data by adding {(-1 - min_val)}")
+                shift = -1 - min_val
+                result = result + shift
+
             result = np.log1p(result)
         elif skewness < 0:                       # left tail → pull up with exp
             result = np.exp(result)
@@ -75,6 +77,9 @@ def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Serie
             raise ValueError("'bins' must be an integer >= 2.")
         result = pd.cut(result, bins=bins, labels=False)
         result = result.astype('Int64')
+
+    if pd.api.types.is_numeric_dtype(result.dtype):
+        result = result.round(4)
 
     return result
 

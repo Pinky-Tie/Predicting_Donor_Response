@@ -1,4 +1,8 @@
 import pandas as pd
+from logging import Logger
+from typing import Optional
+
+# Import functions from the preprocessing_pipeline
 from .preprocessing_pipeline.preprocessing_cleaning_invalid import *
 from .preprocessing_pipeline.preprocessing_encoding import *
 from .preprocessing_pipeline.preprocessing_feature_engineering import *
@@ -7,15 +11,23 @@ from .preprocessing_pipeline.preprocessing_scaling import *
 from .preprocessing_pipeline.preproccessing_outliers import *
 
 
-def log_preprocessing_step(step: str) -> None:
-    print(f"[preprocess_data] {step}")
+def log_preprocessing_step(step: str, logger: Optional[Logger] = None) -> None:
+    message = f"[preprocess_data] {step}"
+    if logger is not None:
+        logger.info(message)
+    else:
+        print(message)
 
 
-def preprocess_data(data_original: pd.DataFrame,
-    outlier_columns = None,
-    outlier_method = "rescale",
-    IQR_value = 1.5,
-    encode = None               ) -> pd.DataFrame:
+def preprocess_data(
+    data_original: pd.DataFrame,
+    outlier_columns=None,
+    outlier_method="rescale",
+    IQR_value=1.5,
+    encode=None,
+    logger: Optional[Logger] = None,
+    cols_to_drop: list[str] = None
+) -> pd.DataFrame:
     """
     Preprocess the data by handling missing values, encoding categorical variables,
     and performing feature engineering.
@@ -30,15 +42,20 @@ def preprocess_data(data_original: pd.DataFrame,
     """
 
     # 0 - copy data
-    log_preprocessing_step("Copying input data")
+    log_preprocessing_step("Copying input data", logger=logger)
     data = data_original.copy()
 
-    # 1 - Handle data inconsistencies and invalid values
-    log_preprocessing_step("Forcing incoherent values to null")
+    # 1 - Drop columns
+    log_preprocessing_step("Dropping irrelevant columns", logger=logger)
+    if cols_to_drop is not None:
+        data = data.drop(columns=cols_to_drop, axis = 1)
+
+    # 2 - Handle data inconsistencies and invalid values
+    log_preprocessing_step("Forcing incoherent values to null", logger=logger)
     data = force_incoherence_to_null(data)
 
-    # 2 - Handle missing values
-    log_preprocessing_step("Building imputers for missing values")
+    # 3 - Handle missing values
+    log_preprocessing_step("Building imputers for missing values", logger=logger)
 
 
     # to get the dict below run:
@@ -65,7 +82,7 @@ def preprocess_data(data_original: pd.DataFrame,
     #     for col, dtype in missing.items()
     # }
 
-    data = build_categorical_imputer(data, dict = {
+    data = impute_columns(data, dict = {
     'CARD_PROM_12': 'knn',
     'CHILDREN': 'knn',
     'DONOR_AGE': 'knn',
@@ -103,32 +120,32 @@ def preprocess_data(data_original: pd.DataFrame,
     'RECENT_RESPONSE_PROP': 'knn',
     'RECENT_STAR_STATUS': 'knn',
     'SES': 'most_frequent',
-    'URBANICITY': 'most_frequent',
-    'WEALTH_RATING': 'knn',
+    'URBANICITY': 'most_frequent'
     })
 
-    ### use imputers
-    log_preprocessing_step("Detecting outlier columns")
+    # 4 - Handle Outliers
+
+    log_preprocessing_step("Detecting outlier columns", logger=logger)
     outlier_columns_considered = (
         detect_outlier_columns(data, IQR_value)
         if outlier_columns is None
         else outlier_columns
     )
    
-    # 3 - Handle Outliers
-    log_preprocessing_step("Handling outliers")
+  
+    log_preprocessing_step("Handling outliers", logger=logger)
     if outlier_method == "rescale":
         for col in outlier_columns_considered:
             data[col] = rescale_outliers(data=data[col], method="transform")
     elif outlier_method == "split":
         split_outlier_cluster(data=data, split_by=outlier_columns_considered, evasive=False)
         
-    # 4 - Encode variables
-    log_preprocessing_step("Encoding categorical variables")
+    # 5 - Encode variables
+    log_preprocessing_step("Encoding categorical variables", logger=logger)
     if encode == "onehot":
         data = one_hot_encode(data)
     elif encode == "label":
         data = label_encode(data)
 
-    log_preprocessing_step("Preprocessing complete")
+    log_preprocessing_step("Preprocessing complete", logger=logger)
     return data
