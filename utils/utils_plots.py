@@ -559,7 +559,17 @@ def plot_missing_percentages(
         color="missing_percent",
         color_continuous_scale=DONOR_SEQUENTIAL_SCALE,
     )
-    fig.update_layout(yaxis={"categoryorder": "total ascending"})
+    fig.update_layout(
+        yaxis={
+            "categoryorder": "array",
+            "categoryarray": missing_pct["feature"].iloc[::-1].tolist(),
+            "tickmode": "array",
+            "tickvals": missing_pct["feature"].tolist(),
+            "ticktext": missing_pct["feature"].tolist(),
+            "automargin": True,
+        },
+        height=max(700, 24 * len(missing_pct)),
+    )
     return _apply_plotly_theme(fig)
 
 
