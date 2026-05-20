@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from logging import Logger
 from typing import Optional
 
@@ -139,6 +140,12 @@ def preprocess_data(
             data[col] = rescale_outliers(data=data[col], method="transform")
     elif outlier_method == "split":
         split_outlier_cluster(data=data, split_by=outlier_columns_considered, evasive=False)
+
+    # Some numeric transforms can overflow or exceed sklearn's float32 checks.
+    data = data.replace([np.inf, -np.inf], np.nan)
+    numeric_columns = data.select_dtypes(include=[np.number]).columns
+    float32_max = np.finfo(np.float32).max
+    data[numeric_columns] = data[numeric_columns].mask(data[numeric_columns].abs() > float32_max, np.nan)
         
     # 5 - Encode variables
     log_preprocessing_step("Encoding categorical variables", logger=logger)
