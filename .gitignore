@@ -16,3 +16,6 @@ htmlcov/
 
 .DS_Store
 
+# Local Kiro CLI workspace (steering, agent config) — do not push
+.kiro/
+
