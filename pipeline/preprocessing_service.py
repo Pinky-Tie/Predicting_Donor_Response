@@ -41,6 +41,8 @@ def preprocess_data(
     Returns:
     pd.DataFrame: The preprocessed DataFrame.
     """
+    
+    print("debug: Original missing values:", data_original.isnull().sum().sum())
 
     # 0 - copy data
     log_preprocessing_step("Copying input data", logger=logger)
@@ -124,6 +126,8 @@ def preprocess_data(
     'URBANICITY': 'most_frequent'
     })
 
+    print("debug: missing values after imputation:", data["PCT_OWNER_OCCUPIED"].isnull().sum().sum())
+
     # 4 - Handle Outliers
 
     log_preprocessing_step("Detecting outlier columns", logger=logger)
@@ -141,11 +145,15 @@ def preprocess_data(
     elif outlier_method == "split":
         split_outlier_cluster(data=data, split_by=outlier_columns_considered, evasive=False)
 
+
     # Some numeric transforms can overflow or exceed sklearn's float32 checks.
     data = data.replace([np.inf, -np.inf], np.nan)
     numeric_columns = data.select_dtypes(include=[np.number]).columns
     float32_max = np.finfo(np.float32).max
     data[numeric_columns] = data[numeric_columns].mask(data[numeric_columns].abs() > float32_max, np.nan)
+
+        
+    print("debug: missing values after outlier handling:", data["PCT_OWNER_OCCUPIED"].isnull().sum().sum())
         
     # 5 - Encode variables
     log_preprocessing_step("Encoding categorical variables", logger=logger)
@@ -154,5 +162,6 @@ def preprocess_data(
     elif encode == "label":
         data = label_encode(data)
 
+    print("debug: missing values after encoding:", data["PCT_OWNER_OCCUPIED"].isnull().sum().sum())
     log_preprocessing_step("Preprocessing complete", logger=logger)
     return data

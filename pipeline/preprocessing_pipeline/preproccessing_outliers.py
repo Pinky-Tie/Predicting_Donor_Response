@@ -1,8 +1,8 @@
-
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import RobustScaler
 from typing import Union
+
 
 def detect_outlier_columns(data: pd.DataFrame, IQR_value: float = 1.5) -> list[str]:
     """
@@ -24,19 +24,20 @@ def detect_outlier_columns(data: pd.DataFrame, IQR_value: float = 1.5) -> list[s
 
     return outlier_cols
 
+
 def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Series:
     """
     Function that takes skewed or outlier prone columns and scales them with the chosen method.
 
     Available methods:
-    - scale   : applies RobustScaler (median + IQR based, outlier-resistant)
-    - transform : applies log1p if right-skewed (skew > 0), exp if left-skewed (skew < 0)
-    - binning : creates broader ordinal categories (bins parameter required)
+    - scale     : applies RobustScaler (median + IQR based, outlier-resistant)
+    - transform : applies log1p if right-skewed (skew > 0), reflected log1p if left-skewed (skew < 0)
+    - binning   : creates broader ordinal categories (bins parameter required)
 
     Parameters:
-        data  : pd.Series  — the column to transform
-        method: str        — one of 'scale', 'transform', 'binning'
-        bins  : int        — number of bins (required only for 'binning')
+        data   : pd.Series — the column to transform
+        method : str       — one of 'scale', 'transform', 'binning'
+        bins   : int       — number of bins (required only for 'binning')
 
     Returns:
         pd.Series with the transformed values (same index as input)
@@ -55,20 +56,27 @@ def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Serie
         ).flatten()
 
     elif method == 'transform':
-        skewness = data.dropna().skew()
-        if skewness > 0:                         # right tail → compress with log
+        skewness = result.dropna().skew()
+
+        if skewness > 0:                                # right-skewed → compress with log1p
             non_null = result.dropna()
             if (non_null <= -1).any():
-                min_val = non_null.min()
-                print(f"Warning: log1p requires values > -1. Shifting data by adding {(-1 - min_val)}")
-                shift = -1 - min_val
+                shift = (-1 - non_null.min()) + 1      # push minimum just above -1
+                print(f"Warning: log1p requires values > -1. Shifting data by {shift}.")
                 result = result + shift
-
             result = np.log1p(result)
-        elif skewness < 0:                       # left tail → pull up with exp
-            result = np.exp(result)
-        else:
-            pass                                 # symmetric, no transform needed
+
+        elif skewness < 0:                              # left-skewed → reflect, log1p, reflect back
+            non_null = result.dropna()
+            reflected = -non_null
+            if (reflected <= -1).any():
+                shift = (-1 - reflected.min()) + 1     # push reflected minimum just above -1
+                print(f"Warning: shifting reflected data by {shift} before log1p.")
+            else:
+                shift = 0
+            result = -(np.log1p(-result + shift))      # reflect → shift → log1p → re-negate
+
+        # else: symmetric → no transform needed
 
     elif method == 'binning':
         if bins is None:
@@ -82,6 +90,7 @@ def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Serie
         result = result.round(4)
 
     return result
+
 
 def split_outlier_cluster(
     data: pd.DataFrame,
@@ -131,8 +140,8 @@ def split_outlier_cluster(
         for col in split_by:
             mask = _outlier_mask(data[col])
             splits[col] = (
-                data[~mask].reset_index(drop=True),   # common
-                data[mask].reset_index(drop=True),    # skewed / outliers
+                data[~mask].reset_index(drop=True),     # common
+                data[mask].reset_index(drop=True),      # skewed / outliers
             )
         return splits
 
