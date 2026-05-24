@@ -312,13 +312,27 @@ def evaluate_classifier(
     y_train_series,
     y_val_series,
     threshold: float = 0.50,
+    return_train_metrics: bool = False,
 ):
-    """Fit a pipeline on the training data and evaluate it on the validation set."""
+    """Fit a pipeline on the training data and evaluate it on the validation set.
+
+    When *return_train_metrics* is True the function returns a third element with
+    the same metric dict computed on the training set, useful for diagnosing
+    overfitting (train–val gap).
+    """
     model_pipeline.fit(X_train_df, y_train_series)
     y_proba = model_pipeline.predict_proba(X_val_df)[:, 1]
     metrics = compute_metrics_from_probabilities(
         y_val_series, y_proba, threshold=threshold
     )
+
+    if return_train_metrics:
+        y_train_proba = model_pipeline.predict_proba(X_train_df)[:, 1]
+        train_metrics = compute_metrics_from_probabilities(
+            y_train_series, y_train_proba, threshold=threshold
+        )
+        return metrics, y_proba, train_metrics
+
     return metrics, y_proba
 
 
