@@ -750,6 +750,270 @@ def plot_confusion_matrix_heatmap(
     return _apply_matplotlib_theme(ax)
 
 
+def plot_variance_ranking(
+    variances: pd.Series,
+    top_n: int = 20,
+    threshold: float | None = None,
+    title: str = "Lowest-Variance Features",
+):
+    """Visualizing features ranked by ascending variance to identify near-constant predictors."""
+    if not isinstance(variances, pd.Series):
+        variances = pd.Series(variances)
+    plot_df = (
+        variances.sort_values(ascending=True)
+        .head(top_n)
+        .reset_index()
+    )
+    plot_df.columns = ["feature", "variance"]
+    # Reverse so the smallest variance is plotted at the top of the horizontal bars.
+    plot_df = plot_df.iloc[::-1]
+
+    fig = px.bar(
+        plot_df,
+        x="variance",
+        y="feature",
+        orientation="h",
+        title=title,
+        labels={"variance": "Variance", "feature": "Feature"},
+        color="variance",
+        color_continuous_scale=DONOR_SEQUENTIAL_SCALE,
+    )
+    if threshold is not None:
+        fig.add_vline(
+            x=threshold,
+            line_dash="dash",
+            line_color=PRIMARY_COLOR,
+            annotation_text=f"threshold = {threshold}",
+            annotation_position="top",
+        )
+    fig.update_layout(height=max(450, len(plot_df) * 25), width=1000)
+    return _apply_plotly_theme(fig)
+
+
+def plot_anova_f_scores(
+    scores_df: pd.DataFrame,
+    feature_column: str = "Feature",
+    score_column: str = "F_score",
+    pvalue_column: str = "p_value",
+    top_n: int = 20,
+    title: str = "ANOVA F-scores: Top Features by Discriminative Power",
+):
+    """Ranking features by ANOVA F-score and shading by statistical significance (-log10 p)."""
+    for col in (feature_column, score_column, pvalue_column):
+        if col not in scores_df.columns:
+            raise ValueError(f"Column '{col}' not found in scores_df.")
+
+    plot_df = scores_df.copy()
+    # Clip extremely small p-values to keep -log10 finite.
+    plot_df["neg_log_p"] = -np.log10(plot_df[pvalue_column].clip(lower=1e-300))
+    plot_df = plot_df.sort_values(score_column, ascending=False).head(top_n)
+    plot_df = plot_df.iloc[::-1]
+
+    fig = px.bar(
+        plot_df,
+        x=score_column,
+        y=feature_column,
+        orientation="h",
+        title=title,
+        labels={
+            score_column: "ANOVA F-score",
+            feature_column: "Feature",
+            "neg_log_p": "-log10(p)",
+        },
+        color="neg_log_p",
+        color_continuous_scale=DONOR_SEQUENTIAL_SCALE,
+        hover_data={pvalue_column: ":.4g"},
+    )
+    fig.update_layout(
+        coloraxis_colorbar_title="-log10(p)",
+        height=max(500, len(plot_df) * 28),
+        width=1100,
+    )
+    return _apply_plotly_theme(fig)
+
+
+def plot_rfe_score_curve(
+    n_features_list,
+    scores,
+    best_n: int | None = None,
+    score_label: str = "ROC-AUC",
+    title: str = "RFE: Validation Score vs Number of Features",
+):
+    """Visualizing how the validation score evolves with the number of features kept by RFE."""
+    plot_df = pd.DataFrame(
+        {"n_features": list(n_features_list), "score": list(scores)}
+    )
+    if plot_df.empty:
+        raise ValueError("n_features_list is empty — nothing to visualize.")
+
+    fig = px.line(
+        plot_df,
+        x="n_features",
+        y="score",
+        title=title,
+        labels={"n_features": "Number of Features", "score": score_label},
+        markers=True,
+    )
+    fig.update_traces(line_color=PRIMARY_COLOR, marker_color=PRIMARY_COLOR)
+
+    if best_n is not None:
+        match = plot_df.loc[plot_df["n_features"] == best_n, "score"]
+        if not match.empty:
+            best_score = float(match.iloc[0])
+            fig.add_vline(
+                x=best_n,
+                line_dash="dot",
+                line_color=SECONDARY_COLOR,
+                annotation_text=f"best n = {best_n} ({score_label} = {best_score:.4f})",
+                annotation_position="top right",
+            )
+
+    fig.update_layout(width=1000, height=520)
+    return _apply_plotly_theme(fig)
+
+
+def plot_lasso_feature_importance(
+    coefs_df: pd.DataFrame,
+    feature_column: str = "Feature",
+    coefficient_column: str = "Coefficient",
+    top_n: int = 20,
+    title: str | None = None,
+):
+    """Visualizing the most relevant features ranked by Lasso coefficient magnitude."""
+    if coefficient_column not in coefs_df.columns:
+        raise ValueError(f"Coefficient column '{coefficient_column}' not found in DataFrame.")
+    if feature_column not in coefs_df.columns:
+        raise ValueError(f"Feature column '{feature_column}' not found in DataFrame.")
+
+    plot_df = coefs_df.copy()
+    plot_df["abs_coefficient"] = plot_df[coefficient_column].abs()
+
+    # Lasso eliminates many features by setting their coefficient to exactly zero;
+    # we only visualize the surviving features so the chart stays informative.
+    plot_df = plot_df[plot_df[coefficient_column] != 0].copy()
+    if plot_df.empty:
+        raise ValueError("All Lasso coefficients are zero — nothing to visualize.")
+
+    plot_df = plot_df.sort_values("abs_coefficient", ascending=False).head(top_n)
+    # Sort ascending by signed coefficient for horizontal bar layout (largest at top).
+    plot_df = plot_df.sort_values(coefficient_column)
+
+    if title is None:
+        title = f"Top {len(plot_df)} Feature Relevance (Lasso / L1 Penalty)"
+
+    max_abs = float(plot_df["abs_coefficient"].max())
+    fig = px.bar(
+        plot_df,
+        x=coefficient_column,
+        y=feature_column,
+        orientation="h",
+        title=title,
+        labels={coefficient_column: "Coefficient Value", feature_column: "Feature"},
+        color=coefficient_column,
+        color_continuous_scale=DONOR_DIVERGING_SCALE,
+        range_color=[-max_abs, max_abs],
+    )
+    fig.add_vline(x=0, line_dash="dash", line_color=FONT_COLOR)
+    fig.update_layout(
+        height=max(500, len(plot_df) * 30),
+        width=1100,
+    )
+    return _apply_plotly_theme(fig)
+
+
+def plot_tree_feature_importance(
+    importance_df: pd.DataFrame,
+    feature_column: str = "Feature",
+    importance_column: str = "Importance",
+    top_n: int = 20,
+    threshold: float | None = None,
+    title: str = "Top Feature Importance (Random Forest)",
+):
+    """Visualizing the top features ranked by tree-based importance."""
+    for col in (feature_column, importance_column):
+        if col not in importance_df.columns:
+            raise ValueError(f"Column '{col}' not found in importance_df.")
+
+    plot_df = (
+        importance_df.sort_values(importance_column, ascending=False)
+        .head(top_n)
+        .copy()
+    )
+    plot_df = plot_df.iloc[::-1]
+
+    fig = px.bar(
+        plot_df,
+        x=importance_column,
+        y=feature_column,
+        orientation="h",
+        title=title,
+        labels={importance_column: "Importance", feature_column: "Feature"},
+        color=importance_column,
+        color_continuous_scale=DONOR_SEQUENTIAL_SCALE,
+    )
+    if threshold is not None:
+        fig.add_vline(
+            x=threshold,
+            line_dash="dash",
+            line_color=FONT_COLOR,
+            annotation_text=f"mean = {threshold:.4f}",
+            annotation_position="top",
+        )
+    fig.update_layout(height=max(500, len(plot_df) * 28), width=1000)
+    return _apply_plotly_theme(fig)
+
+
+def plot_pca_explained_variance(
+    explained_variance_ratio,
+    threshold: float = 0.95,
+    title: str = "PCA - Cumulative Explained Variance",
+):
+    """Visualizing the cumulative explained variance ratio across PCA components."""
+    cumulative = np.cumsum(np.asarray(explained_variance_ratio))
+    if cumulative.size == 0:
+        raise ValueError("explained_variance_ratio is empty — nothing to visualize.")
+
+    plot_df = pd.DataFrame(
+        {
+            "component": list(range(1, len(cumulative) + 1)),
+            "cumulative_variance": cumulative,
+        }
+    )
+
+    # Number of components needed to first reach the variance threshold.
+    n_components_threshold = int(np.searchsorted(cumulative, threshold)) + 1
+    n_components_threshold = min(n_components_threshold, len(cumulative))
+
+    fig = px.line(
+        plot_df,
+        x="component",
+        y="cumulative_variance",
+        title=title,
+        labels={
+            "component": "Number of Principal Components",
+            "cumulative_variance": "Cumulative Explained Variance",
+        },
+        markers=True,
+    )
+    fig.update_traces(line_color=PRIMARY_COLOR, marker_color=PRIMARY_COLOR)
+    fig.add_hline(
+        y=threshold,
+        line_dash="dash",
+        line_color=SECONDARY_COLOR,
+        annotation_text=f"{threshold:.0%} explained variance",
+        annotation_position="top left",
+    )
+    fig.add_vline(
+        x=n_components_threshold,
+        line_dash="dot",
+        line_color=SECONDARY_COLOR,
+        annotation_text=f"{n_components_threshold} components",
+        annotation_position="bottom right",
+    )
+    fig.update_layout(yaxis_tickformat=".0%", yaxis_range=[0, 1.05], width=1000, height=550)
+    return _apply_plotly_theme(fig)
+
+
 def plot_probability_distribution(y_proba, ax=None, bins: int = 20):
     """Plot the distribution of positive-class predicted probabilities."""
     scores = np.asarray(y_proba)
