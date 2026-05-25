@@ -4,42 +4,54 @@ Run these in order — each builds on the outputs of the previous one.
 
 ## 01 — Exploratory Data Analysis (`01_eda.ipynb`)
 
-Initial exploration of the raw dataset:
-- Class distribution of `TARGET_B` (confirms imbalance)
-- Missing value analysis and missingness patterns
-- Univariate distributions for numeric and categorical features
-- Correlation analysis and feature-target relationships
-- Identification of data quality issues (incoherent values, outliers)
+Full exploration of the raw dataset:
+- Summary statistics and data types for all 41 features
+- Missingness analysis (percentages, overlap heatmap, missing vs target relationship)
+- Outlier detection (boxplots, IQR-based percentages, histograms)
+- Categorical frequency analysis and target-rate plots
+- Correlation heatmap
+- Domain-rule validation (negative CHILDREN, proportions > 1, "?" codes in SES/URBANICITY)
+- Ends with preprocessing recommendations based on findings
 
 ## 02 — Feature Engineering & Selection (`02_feature_engineering_and_selection.ipynb`)
 
 Transforms raw features into modeling-ready inputs:
-- **Feature engineering**: creates domain-driven ratio and interaction features (e.g., avg gift amount, response rates, recency ratios)
-- **Preprocessing scenarios**: compares three setups — raw cleaned, +feature engineering, +feature engineering + feature selection
-- **Feature selection methods**: filter (correlation, mutual information), wrapper (sequential forward/backward), embedded (tree-based importance)
-- **Output**: saves consensus selected features to `project_data/selected_features.json`
+- 70/30 stratified train/val split (`random_state=5`)
+- Full preprocessing via `preprocess_data()` (KNN imputation, outlier rescaling, one-hot encoding) applied to train, val, and test
+- **12 engineered features** created (AVG_GIFT_PER_DONATION, PROMOTION_RESPONSE_RATE, RESPONSES_PER_YEAR, etc.)
+- Baseline comparison: Logistic Regression + Gradient Boosting evaluated across 4 preprocessing scenarios (drop/keep WEALTH_RATING × numeric/categorical INCOME_GROUP)
+- Comparison of baseline vs engineered feature sets (16-row results table)
+- **Feature selection**: filter (correlation, mutual information), wrapper (sequential), embedded (tree-based importance) — consensus vote
+- **Output**: `project_data/selected_features.json`, cleaned CSVs (`X_train_clean.csv`, `X_val_clean.csv`, `X_test_clean.csv`, `y_train_clean.csv`, `y_val_clean.csv`)
+- **Key finding**: engineered features did NOT improve Gradient Boosting but marginally helped Logistic Regression
 
 ## 03 — Baseline Models (`03_baseline_models.ipynb`)
 
-Compares five classifiers across the three preprocessing scenarios:
-- Logistic Regression, Decision Tree, Random Forest, Gradient Boosting, KNN
-- Evaluates each on the validation set using F1, ROC AUC, precision, recall
-- Produces a summary table identifying the best scenario per model
-- Results feed into notebook 04 for hyperparameter tuning
+Compares 5 classifiers across 3 preprocessing scenarios:
+- **Models**: Logistic Regression, Random Forest, Decision Tree, Extra Trees, Gradient Boosting
+- **Scenarios**: Raw (cleaned only), +FE (with engineered features), +FE+FS (engineered + consensus feature selection)
+- Metrics: ROC-AUC, F1, precision, recall, accuracy (train and validation)
+- Side-by-side scenario comparison table
+- **Key results**: Gradient Boosting best ROC-AUC (~0.60), Logistic Regression best F1 (~0.39). All models struggle with recall at default threshold.
+- **Conclusion**: recommends threshold tuning; identifies LR + GB as candidates for hyperparameter tuning
 
 ## 04 — Model Selection (`04_model_selection.ipynb`)
 
-Hyperparameter tuning on the top-performing model–scenario combinations:
-- Grid/random search with stratified cross-validation
-- Threshold optimization (finds the probability cutoff that maximizes F1)
-- Final model comparison and selection
+Hyperparameter tuning framework using **Optuna**:
+- Defines optimization wrappers for 9 models: Gradient Boosting, Logistic Regression, AdaBoost, Decision Tree, Random Forest, Gaussian NB, KNN, MLP, Stacking
+- Uses `utils/utils_modeling.py` (`optimize_with_optuna`, `train_all_models`)
+- Designed to run 100–150 trials per model and log best results to `results_history.md`
+- ⚠️ **Note**: the full `train_all_models()` execution is not saved in the notebook state (cells show `execution_count: null`), but results were logged and used by notebook 05
 
 ## 05 — Final Submission (`05_final_submission.ipynb`)
 
-Produces the competition submission file:
-- Refits the chosen pipeline on the full training set (train + validation)
-- Generates predictions on `donors_test.csv`
-- Exports `project_data/Predictions.csv` in the required format (`CONTROL_NUMBER`, `TARGET_B`)
+Produces the competition submission:
+- Reads best model name + hyperparameters from `results_history.md`
+- Builds the model via `build_model()` from `utils.utils_modeling`
+- 5-fold cross-validation on full training data (train + val)
+- Final fit and validation F1 reported
+- Predicts on `donors_test.csv` (5812 rows)
+- **Output**: `project_data/Predictions.csv` (`CONTROL_NUMBER`, `TARGET_B`)
 
 ---
 
@@ -47,4 +59,4 @@ Produces the competition submission file:
 
 ### 0X — Preprocessing Showcase (`0X_preprocessing_showcase.ipynb`)
 
-Demonstrates the reusable `pipeline/` package step by step (cleaning, imputation, outlier handling, encoding, scaling). Not part of the main workflow — useful as a reference for understanding the preprocessing logic.
+Demonstrates the `pipeline/` package step by step (cleaning, imputation, outlier handling, encoding, scaling). Not part of the main workflow — useful as a reference for understanding the preprocessing logic.
