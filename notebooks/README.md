@@ -53,10 +53,3 @@ Produces the competition submission:
 - Predicts on `donors_test.csv` (5812 rows)
 - **Output**: `project_data/Predictions.csv` (`CONTROL_NUMBER`, `TARGET_B`)
 
----
-
-## Side Notebook
-
-### 0X — Preprocessing Showcase (`0X_preprocessing_showcase.ipynb`)
-
-Demonstrates the `pipeline/` package step by step (cleaning, imputation, outlier handling, encoding, scaling). Not part of the main workflow — useful as a reference for understanding the preprocessing logic.
