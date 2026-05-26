@@ -51,7 +51,7 @@ def preprocess_data(
     # 1 - Drop columns
     log_preprocessing_step("Dropping irrelevant columns", logger=logger)
     if cols_to_drop is not None:
-        data = data.drop(columns=cols_to_drop, axis = 1)
+        data = data.drop(columns=cols_to_drop) #, axis = 1)
 
     # 2 - Handle data inconsistencies and invalid values
     log_preprocessing_step("Forcing incoherent values to null", logger=logger)
