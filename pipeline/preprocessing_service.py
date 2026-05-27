@@ -13,6 +13,7 @@ from .preprocessing_pipeline.preproccessing_outliers import *
 
 
 def log_preprocessing_step(step: str, logger: Optional[Logger] = None) -> None:
+    """Creates a message describing the applied preprocessing step and outputs it."""
     message = f"[preprocess_data] {step}"
     if logger is not None:
         logger.info(message)
