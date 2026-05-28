@@ -29,7 +29,29 @@ val_scores = []
 # ── Objective ─────────────────────────────────────────────────────────────────
 
 def objective(train_data, y_train, val_data, y_val, trial, model_type):
-    """Build, cross-validate and score one Optuna trial."""
+    """
+    Build a model from a `model_type` and evaluate one Optuna trial.
+
+    Parameters
+    ----------
+    train_data : array-like or DataFrame
+        Feature matrix used for cross-validation and training.
+    y_train : array-like
+        Target labels for training.
+    val_data : array-like or DataFrame
+        Holdout validation features (used for final holdout score reporting).
+    y_val : array-like
+        Holdout validation labels.
+    trial : optuna.trial.Trial
+        Optuna trial object used to suggest hyperparameters.
+    model_type : str
+        Short name indicating which model to build (e.g. "RandomForestClassifier").
+
+    Returns
+    -------
+    float
+        Mean cross-validation F1 score (this is what Optuna maximizes).
+    """
 
     if model_type == "GradientBoosting":
         model = GradientBoostingClassifier(
@@ -149,7 +171,26 @@ def objective(train_data, y_train, val_data, y_val, trial, model_type):
 # ── Build a model from best params ────────────────────────────────────────────
 
 def build_model(model_type, params):
-    """Reconstruct a fitted-ready model from a params dict."""
+    """
+    Reconstruct an unfitted scikit-learn estimator from a parameter dict.
+
+    Parameters
+    ----------
+    model_type : str
+        Name of the model type (must be one of the keys handled by the mapping).
+    params : dict
+        Dictionary of hyperparameters to pass to the estimator constructor.
+
+    Returns
+    -------
+    estimator
+        A scikit-learn estimator instance constructed with the given params.
+
+    Raises
+    ------
+    ValueError
+        If `model_type` is unknown.
+    """
     mapping = {
         "GradientBoosting":      lambda p: GradientBoostingClassifier(**p, random_state=1),
         "LogisticRegression":    lambda p: LogisticRegression(**p, random_state=1),

@@ -5,6 +5,12 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, MinMaxScaler, RobustScaler, StandardScaler
 
 def _round_transformer():
+    """Return a FunctionTransformer that rounds numeric arrays to 4 decimal places.
+
+    This is used as the final step in numeric pipelines to keep numeric values
+    consistent and avoid excessive floating point precision when storing or
+    comparing transformed features.
+    """
     return FunctionTransformer(lambda X: np.round(X, 4), validate=False)
 
 
