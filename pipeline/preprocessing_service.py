@@ -6,7 +6,6 @@ from typing import Optional
 # Import functions from the preprocessing_pipeline
 from .preprocessing_pipeline.preprocessing_cleaning_invalid import *
 from .preprocessing_pipeline.preprocessing_encoding import *
-from .preprocessing_pipeline.preprocessing_feature_engineering import *
 from .preprocessing_pipeline.preprocessing_missing_values import *
 from .preprocessing_pipeline.preprocessing_scaling import *
 from .preprocessing_pipeline.preproccessing_outliers import *
@@ -76,7 +75,6 @@ def preprocess_data(
         modeling with scikit-learn pipelines.
     """
     
-    print("debug: Original missing values:", data_original.isnull().sum().sum())
 
     # 0 - copy data
     log_preprocessing_step("Copying input data", logger=logger)
@@ -160,7 +158,6 @@ def preprocess_data(
     'URBANICITY': 'most_frequent'
     })
 
-    print("debug: missing values after imputation:", data["PCT_OWNER_OCCUPIED"].isnull().sum().sum())
 
     # 4 - Handle Outliers
 
@@ -187,7 +184,6 @@ def preprocess_data(
     data[numeric_columns] = data[numeric_columns].mask(data[numeric_columns].abs() > float32_max, np.nan)
 
         
-    print("debug: missing values after outlier handling:", data["PCT_OWNER_OCCUPIED"].isnull().sum().sum())
         
     # 5 - Encode variables
     log_preprocessing_step("Encoding categorical variables", logger=logger)
@@ -196,6 +192,5 @@ def preprocess_data(
     elif encode == "label":
         data = label_encode(data)
 
-    print("debug: missing values after encoding:", data["PCT_OWNER_OCCUPIED"].isnull().sum().sum())
     log_preprocessing_step("Preprocessing complete", logger=logger)
     return data
