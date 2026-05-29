@@ -38,16 +38,14 @@ Compares 5 classifiers across 3 preprocessing scenarios:
 ## 04 — Model Selection (`04_model_selection.ipynb`)
 
 Hyperparameter tuning framework using **Optuna**:
-- Defines optimization wrappers for 9 models: Gradient Boosting, Logistic Regression, AdaBoost, Decision Tree, Random Forest, Gaussian NB, KNN, MLP, Stacking
+- Defines optimization wrappers for selected models, considering the highest performers in the previous notebook.
 - Uses `utils/utils_modeling.py` (`optimize_with_optuna`, `train_all_models`)
 - Designed to run 100–150 trials per model and log best results to `results_history.md`
-- ⚠️ **Note**: the full `train_all_models()` execution is not saved in the notebook state (cells show `execution_count: null`), but results were logged and used by notebook 05
 
 ## 05 — Final Submission (`05_final_submission.ipynb`)
 
 Produces the competition submission:
-- Reads best model name + hyperparameters from `results_history.md`
-- Builds the model via `build_model()` from `utils.utils_modeling`
+- Builds the model the winner model defined in the previous notebook
 - 5-fold cross-validation on full training data (train + val)
 - Final fit and validation F1 reported
 - Predicts on `donors_test.csv` (5812 rows)

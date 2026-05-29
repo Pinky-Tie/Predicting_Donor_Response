@@ -9,7 +9,7 @@ Nonprofit organizations often struggle with decreasing engagement in fundraising
 
 This project builds machine learning models to predict whether a person will donate if contacted (`TARGET_B = 1`), enabling CSA to target the right individuals while reducing unnecessary outreach. The task is framed as an **imbalanced binary classification** problem using historical campaign data.
 
-## Dataset
+## Original Datasets
 
 | File | Description |
 |------|-------------|
@@ -58,6 +58,7 @@ Predicting_Donor_Response/
 
 ## Setup
 
+### Main setup
 ```bash
 # Clone the repository
 git clone git@github.com:Pinky-Tie/Predicting_Donor_Response.git
@@ -73,8 +74,12 @@ pip install -r requirements.txt
 # Launch Jupyter
 jupyter notebook
 ```
+### Alternative setup (colab injection)
+All notebooks can be easily run via the following colab notebook.
+This is an easy alternative if the user's objetive is solely to retrieve fresh predictions.
+[Colab Runner](https://colab.research.google.com/drive/16IblEj1HUrs2CjNJ7S-CLI2hlBcfZ0jq?usp=sharing)
 
-## Tech Stack
+## Tech Stack 
 
 - **Python 3.13**
 - pandas, NumPy — data manipulation
