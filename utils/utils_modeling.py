@@ -9,7 +9,6 @@ from sklearn.ensemble import (
     RandomForestClassifier,
     GradientBoostingClassifier,
     AdaBoostClassifier,
-    StackingClassifier,
     ExtraTreesClassifier,
 )
 from sklearn.tree import DecisionTreeClassifier
@@ -167,10 +166,10 @@ def objective(train_data, y_train, val_data, y_val, trial, model_type):
     if model_type == "GradientBoosting":
         neg = (y_train == 0).sum()
         pos = (y_train == 1).sum()
-        sample_weights = np.where(y_train == 1, neg / pos, 1.0)
+        sample_weights = np.where(y_train == 1, neg / pos, 1.0).ravel()  # ← .ravel() forces 1D
         cv_scores = cross_val_score(
             model, train_data, y_train, cv=cv, scoring="f1",
-            fit_params={"sample_weight": sample_weights},
+            params={"sample_weight": sample_weights},
         )
     else:
         cv_scores = cross_val_score(model, train_data, y_train, cv=cv, scoring="f1")
@@ -260,7 +259,7 @@ def optimize_with_optuna(
     if model_type == "GradientBoosting":
         neg = (y_train == 0).sum()
         pos = (y_train == 1).sum()
-        sample_weights = np.where(y_train == 1, neg / pos, 1.0)
+        sample_weights = np.where(y_train == 1, neg / pos, 1.0).ravel()  # ← .ravel() here too
         best_model.fit(train_data, y_train, sample_weight=sample_weights)
     else:
         best_model.fit(train_data, y_train)
@@ -319,7 +318,16 @@ def train_all_models(models, train_data, y_train, val_data, y_val, test_data=Non
         study = optimizer_fn(train_data, y_train, val_data, y_val, n_trials=n_trials, **kwargs)
 
         # Re-fit best model on full training data
-        best_model = build_model(model_name, study.best_params)
+        # Re-fit best model on full training data
+    best_model = build_model(model_name, study.best_params)
+
+    if model_name == "GradientBoosting":
+        neg = (y_train == 0).sum()
+        pos = (y_train == 1).sum()
+        sample_weights = np.where(y_train == 1, neg / pos, 1.0).ravel()
+        best_model.fit(train_data, y_train, sample_weight=sample_weights)
+    else:
+        best_model.fit(train_data, y_train)
         best_model.fit(train_data, y_train)
 
         # Holdout validation metrics

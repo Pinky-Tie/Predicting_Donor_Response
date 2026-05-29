@@ -56,3 +56,9 @@ result: 0.42084
 **Model:** DecisionTree  
 **F1 Score (val):** 0.3969  
 **Parameters:** {'max_depth': 3, 'min_samples_split': 18, 'min_samples_leaf': 23, 'max_features': 'sqrt'}  
+
+---
+**Date:** 2026-05-29 02:53  
+**Model:** DecisionTree  
+**F1 Score (val):** 0.3969  
+**Parameters:** {'max_depth': 3, 'min_samples_split': 9, 'min_samples_leaf': 26, 'max_features': 'sqrt'}  
