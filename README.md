@@ -75,8 +75,9 @@ pip install -r requirements.txt
 jupyter notebook
 ```
 ### Alternative setup (colab injection)
-All notebooks can be easily run via the following colab notebook
-[Colab injectio][https://colab.research.google.com/drive/16IblEj1HUrs2CjNJ7S-CLI2hlBcfZ0jq?usp=sharing]
+All notebooks can be easily run via the following colab notebook.
+This is an easy alternative if the user's objetive is solely to retrieve fresh predictions.
+[Colab injectio](https://colab.research.google.com/drive/16IblEj1HUrs2CjNJ7S-CLI2hlBcfZ0jq?usp=sharing)
 
 ## Tech Stack 
 
