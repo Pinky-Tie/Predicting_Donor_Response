@@ -25,19 +25,31 @@ def detect_outlier_columns(data: pd.DataFrame, IQR_value: float = 1.5) -> list[s
     return outlier_cols
 
 
-def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Series:
+def rescale_outliers(
+    data: pd.Series,
+    method: str,
+    bins: int = None,
+    skew_threshold: float = 0.0,
+) -> pd.Series:
     """
     Function that takes skewed or outlier prone columns and scales them with the chosen method.
 
     Available methods:
     - scale     : applies RobustScaler (median + IQR based, outlier-resistant)
-    - transform : applies log1p if right-skewed (skew > 0), reflected log1p if left-skewed (skew < 0)
+    - transform : applies log1p if right-skewed, reflected log1p if left-skewed.
+                  Only acts when abs(skewness) >= skew_threshold — columns that
+                  are close to symmetric are left untouched.
+                  lower values (e.g. 0.5) act more aggressively, higher values
+                  (e.g. 2.0) only touch heavily skewed columns.
     - binning   : creates broader ordinal categories (bins parameter required)
 
     Parameters:
-        data   : pd.Series — the column to transform
-        method : str       — one of 'scale', 'transform', 'binning'
-        bins   : int       — number of bins (required only for 'binning')
+        data           : pd.Series — the column to transform
+        method         : str       — one of 'scale', 'transform', 'binning'
+        bins           : int       — number of bins (required only for 'binning')
+        skew_threshold : float     — minimum abs(skewness) to trigger the
+                                     'transform' method. Default 0.0.
+                                     Has no effect on 'scale' or 'binning'.
 
     Returns:
         pd.Series with the transformed values (same index as input)
@@ -58,25 +70,27 @@ def rescale_outliers(data: pd.Series, method: str, bins: int = None) -> pd.Serie
     elif method == 'transform':
         skewness = result.dropna().skew()
 
-        if skewness > 0:                                # right-skewed → compress with log1p
+        if abs(skewness) < skew_threshold:
+            # Not skewed enough to warrant transformation — return as-is
+            pass
+
+        elif skewness > 0:                              # right-skewed → compress with log1p
             non_null = result.dropna()
             if (non_null <= -1).any():
-                shift = (-1 - non_null.min()) + 1      # push minimum just above -1
+                shift = (-1 - non_null.min()) + 1
                 print(f"Warning: log1p requires values > -1. Shifting data by {shift}.")
                 result = result + shift
             result = np.log1p(result)
 
-        elif skewness < 0:                              # left-skewed → reflect, log1p, reflect back
+        else:                                           # left-skewed → reflect, log1p, reflect back
             non_null = result.dropna()
             reflected = -non_null
             if (reflected <= -1).any():
-                shift = (-1 - reflected.min()) + 1     # push reflected minimum just above -1
+                shift = (-1 - reflected.min()) + 1
                 print(f"Warning: shifting reflected data by {shift} before log1p.")
             else:
                 shift = 0
-            result = -(np.log1p(-result + shift))      # reflect → shift → log1p → re-negate
-
-        # else: symmetric → no transform needed
+            result = -(np.log1p(-result + shift))
 
     elif method == 'binning':
         if bins is None:

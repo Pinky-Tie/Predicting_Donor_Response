@@ -2,6 +2,7 @@
 
 from matplotlib import pyplot as plt
 import pandas as pd
+import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import (
@@ -55,98 +56,105 @@ def objective(train_data, y_train, val_data, y_val, trial, model_type):
 
     if model_type == "GradientBoosting":
         model = GradientBoostingClassifier(
-            n_estimators=trial.suggest_int("n_estimators", 2, 500),
-            learning_rate=trial.suggest_float("learning_rate", 0.001, 1.0, log=True),
-            subsample=trial.suggest_float("subsample", 0.2, 1.0),
-            max_features=trial.suggest_categorical("max_features", [2, 0.5, "sqrt", "log2", None]),
-            max_leaf_nodes=trial.suggest_int("max_leaf_nodes", 2, 6),
-            max_depth=trial.suggest_int("max_depth", 2, 6),
-            min_samples_split=trial.suggest_int("min_samples_split", 2, 10),
-            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 4),
+            n_estimators=trial.suggest_int("n_estimators", 50, 400),
+            learning_rate=trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            subsample=trial.suggest_float("subsample", 0.5, 1.0),
+            max_features=trial.suggest_categorical("max_features", ["sqrt", "log2", None]),
+            max_leaf_nodes=trial.suggest_int("max_leaf_nodes", 10, 50),
+            max_depth=trial.suggest_int("max_depth", 2, 5),
+            min_samples_split=trial.suggest_int("min_samples_split", 2, 20),
+            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 10),
             random_state=1,
         )
 
     elif model_type == "LogisticRegression":
         model = LogisticRegression(
-            C=trial.suggest_float("C", 0.001, 200),
+            C=trial.suggest_float("C", 0.001, 10.0, log=True),
             solver=trial.suggest_categorical("solver", ["newton-cg", "lbfgs", "liblinear", "sag", "saga"]),
-            max_iter=trial.suggest_int("max_iter", 100, 1000),
+            max_iter=trial.suggest_int("max_iter", 200, 1000),
             fit_intercept=trial.suggest_categorical("fit_intercept", [True, False]),
+            class_weight="balanced",
             random_state=1,
         )
 
     elif model_type == "AdaBoost":
         base = DecisionTreeClassifier(
-            max_depth=trial.suggest_int("max_depth", 1, 6),
+            max_depth=trial.suggest_int("max_depth", 1, 4),
             min_samples_split=trial.suggest_int("min_samples_split", 2, 8),
             min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 8),
+            class_weight="balanced",
             random_state=1,
         )
         model = AdaBoostClassifier(
             estimator=base,
-            n_estimators=trial.suggest_int("n_estimators", 2, 500),
-            learning_rate=trial.suggest_float("learning_rate", 0.001, 1.0, log=True),
-            algorithm=trial.suggest_categorical("algorithm", ["SAMME"]),
+            n_estimators=trial.suggest_int("n_estimators", 50, 300),
+            learning_rate=trial.suggest_float("learning_rate", 0.01, 1.0, log=True),
+            algorithm="SAMME",
             random_state=14,
         )
 
     elif model_type == "DecisionTree":
         model = DecisionTreeClassifier(
-            max_depth=trial.suggest_int("max_depth", 3, 7),
+            max_depth=trial.suggest_int("max_depth", 3, 10),
             min_samples_split=trial.suggest_int("min_samples_split", 2, 20),
-            min_samples_leaf=trial.suggest_int("min_samples_leaf", 10, 15),
+            min_samples_leaf=trial.suggest_int("min_samples_leaf", 5, 30),
+            max_features=trial.suggest_categorical("max_features", ["sqrt", "log2", None]),
+            class_weight="balanced",
             random_state=1,
         )
 
     elif model_type == "RandomForestClassifier":
         model = RandomForestClassifier(
-            n_estimators=trial.suggest_int("n_estimators", 7, 25),
+            n_estimators=trial.suggest_int("n_estimators", 100, 500),
             criterion=trial.suggest_categorical("criterion", ["gini", "entropy", "log_loss"]),
-            max_depth=trial.suggest_int("max_depth", 10, 14),
-            min_samples_split=trial.suggest_int("min_samples_split", 5, 14),
-            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 11),
+            max_depth=trial.suggest_int("max_depth", 3, 15),
+            min_samples_split=trial.suggest_int("min_samples_split", 2, 20),
+            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 15),
             bootstrap=trial.suggest_categorical("bootstrap", [True, False]),
-            warm_start=trial.suggest_categorical("warm_start", [True, False]),
             max_features=trial.suggest_categorical("max_features", ["sqrt", "log2"]),
-            max_leaf_nodes=trial.suggest_int("max_leaf_nodes", 10, 120),
-            min_weight_fraction_leaf=trial.suggest_float("min_weight_fraction_leaf", 0.0, 0.5),
+            max_leaf_nodes=trial.suggest_int("max_leaf_nodes", 10, 100),
+            class_weight="balanced",
             random_state=1,
         )
 
     elif model_type == "GaussianNB":
-        model = GaussianNB(var_smoothing=10 ** trial.suggest_int("var_smoothing", -12, -6))
+        model = GaussianNB(
+            var_smoothing=10 ** trial.suggest_float("var_smoothing", -9, -1)
+        )
 
     elif model_type == "KNeighborsClassifier":
         model = KNeighborsClassifier(
-            n_neighbors=trial.suggest_int("n_neighbors", 1, 50),
+            n_neighbors=trial.suggest_int("n_neighbors", 3, 30),
             weights=trial.suggest_categorical("weights", ["uniform", "distance"]),
             algorithm=trial.suggest_categorical("algorithm", ["auto", "ball_tree", "kd_tree", "brute"]),
-            leaf_size=trial.suggest_int("leaf_size", 10, 100),
-            p=trial.suggest_int("p", 1, 6),
+            leaf_size=trial.suggest_int("leaf_size", 10, 50),
+            p=trial.suggest_int("p", 1, 2),
         )
 
     elif model_type == "MLPClassifier":
         model = MLPClassifier(
-            activation=trial.suggest_categorical("activation", ["identity", "logistic", "tanh", "relu"]),
-            solver=trial.suggest_categorical("solver", ["lbfgs", "sgd", "adam"]),
-            learning_rate=trial.suggest_categorical("learning_rate", ["constant", "invscaling", "adaptive"]),
-            shuffle=trial.suggest_categorical("shuffle", [True, False]),
-            early_stopping=trial.suggest_categorical("early_stopping", [True, False]),
-            max_iter=trial.suggest_int("max_iter", 100, 1000),
+            hidden_layer_sizes=trial.suggest_categorical(
+                "hidden_layer_sizes", [(64,), (128,), (64, 32), (128, 64), (128, 64, 32)]
+            ),
+            activation=trial.suggest_categorical("activation", ["logistic", "tanh", "relu"]),
+            solver=trial.suggest_categorical("solver", ["lbfgs", "adam"]),
+            learning_rate=trial.suggest_categorical("learning_rate", ["constant", "adaptive"]),
+            early_stopping=True,
+            max_iter=trial.suggest_int("max_iter", 200, 1000),
+            random_state=1,
         )
 
     elif model_type == "ExtraTreesClassifier":
         model = ExtraTreesClassifier(
-            n_estimators=trial.suggest_int("n_estimators", 7, 25),
+            n_estimators=trial.suggest_int("n_estimators", 100, 500),
             criterion=trial.suggest_categorical("criterion", ["gini", "entropy", "log_loss"]),
-            max_depth=trial.suggest_int("max_depth", 10, 14),
-            min_samples_split=trial.suggest_int("min_samples_split", 5, 14),
-            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 11),
+            max_depth=trial.suggest_int("max_depth", 3, 15),
+            min_samples_split=trial.suggest_int("min_samples_split", 2, 20),
+            min_samples_leaf=trial.suggest_int("min_samples_leaf", 1, 15),
             bootstrap=trial.suggest_categorical("bootstrap", [True, False]),
-            warm_start=trial.suggest_categorical("warm_start", [True, False]),
             max_features=trial.suggest_categorical("max_features", ["sqrt", "log2"]),
-            max_leaf_nodes=trial.suggest_int("max_leaf_nodes", 10, 120),
-            min_weight_fraction_leaf=trial.suggest_float("min_weight_fraction_leaf", 0.0, 0.5),
+            max_leaf_nodes=trial.suggest_int("max_leaf_nodes", 10, 100),
+            class_weight="balanced",
             random_state=1,
         )
 
@@ -155,18 +163,32 @@ def objective(train_data, y_train, val_data, y_val, trial, model_type):
 
     # ── Cross-validation score (what Optuna maximises) ────────────────────────
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
-    cv_scores = cross_val_score(model, train_data, y_train, cv=cv, scoring="f1")
+
+    if model_type == "GradientBoosting":
+        neg = (y_train == 0).sum()
+        pos = (y_train == 1).sum()
+        sample_weights = np.where(y_train == 1, neg / pos, 1.0)
+        cv_scores = cross_val_score(
+            model, train_data, y_train, cv=cv, scoring="f1",
+            fit_params={"sample_weight": sample_weights},
+        )
+    else:
+        cv_scores = cross_val_score(model, train_data, y_train, cv=cv, scoring="f1")
+
     validation_score = cv_scores.mean()
 
     # ── Training score (logged for the convergence plot) ──────────────────────
-    model.fit(train_data, y_train)
+    if model_type == "GradientBoosting":
+        model.fit(train_data, y_train, sample_weight=sample_weights)
+    else:
+        model.fit(train_data, y_train)
+
     training_score = f1_score(y_train, model.predict(train_data))
 
     training_scores.append(training_score)
     val_scores.append(validation_score)
 
     return validation_score
-
 
 # ── Build a model from best params ────────────────────────────────────────────
 
@@ -192,15 +214,15 @@ def build_model(model_type, params):
         If `model_type` is unknown.
     """
     mapping = {
-        "GradientBoosting":      lambda p: GradientBoostingClassifier(**p, random_state=1),
-        "LogisticRegression":    lambda p: LogisticRegression(**p, random_state=1),
-        "AdaBoost":              lambda p: AdaBoostClassifier(**p, random_state=1),
-        "DecisionTree":          lambda p: DecisionTreeClassifier(**p, random_state=1),
-        "RandomForestClassifier":lambda p: RandomForestClassifier(**p, random_state=1),
-        "GaussianNB":            lambda p: GaussianNB(**p),
-        "KNeighborsClassifier":  lambda p: KNeighborsClassifier(**p),
-        "MLPClassifier":         lambda p: MLPClassifier(**p),
-        "ExtraTreesClassifier":  lambda p: ExtraTreesClassifier(**p, random_state=1),
+        "GradientBoosting":       lambda p: GradientBoostingClassifier(**p, random_state=1),
+        "LogisticRegression":     lambda p: LogisticRegression(**p, random_state=1),
+        "AdaBoost":               lambda p: AdaBoostClassifier(**p, random_state=1),
+        "DecisionTree":           lambda p: DecisionTreeClassifier(**p, class_weight="balanced", random_state=1),
+        "RandomForestClassifier": lambda p: RandomForestClassifier(**p, class_weight="balanced", random_state=1),
+        "GaussianNB":             lambda p: GaussianNB(**p),
+        "KNeighborsClassifier":   lambda p: KNeighborsClassifier(**p),
+        "MLPClassifier":          lambda p: MLPClassifier(**p, random_state=1),
+        "ExtraTreesClassifier":   lambda p: ExtraTreesClassifier(**p, class_weight="balanced", random_state=1),
     }
     if model_type not in mapping:
         raise ValueError(f"Unknown model_type: '{model_type}'")
@@ -223,8 +245,8 @@ def optimize_with_optuna(
     study.optimize(
         lambda trial: objective(train_data, y_train, val_data, y_val, trial, model_type),
         n_trials=n_trials,
-    )
-
+        show_progress_bar=True,
+        )
     # ── Print summary ─────────────────────────────────────────────────────────
     best_trial = study.best_trial
     print(f"  Finished trials : {len(study.trials)}")
@@ -234,7 +256,15 @@ def optimize_with_optuna(
 
     # Final score on the holdout validation set
     best_model = build_model(model_type, study.best_params)
-    best_model.fit(train_data, y_train)
+
+    if model_type == "GradientBoosting":
+        neg = (y_train == 0).sum()
+        pos = (y_train == 1).sum()
+        sample_weights = np.where(y_train == 1, neg / pos, 1.0)
+        best_model.fit(train_data, y_train, sample_weight=sample_weights)
+    else:
+        best_model.fit(train_data, y_train)
+
     final_preds = best_model.predict(val_data)
     print(f"  Holdout val F1  : {f1_score(y_val, final_preds):.4f}")
 

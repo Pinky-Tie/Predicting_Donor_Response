@@ -12,16 +12,7 @@ from .preprocessing_pipeline.preproccessing_outliers import *
 
 
 def log_preprocessing_step(step: str, logger: Optional[Logger] = None) -> None:
-    """
-    Log or print a short message describing a preprocessing step.
-
-    Parameters
-    ----------
-    step : str
-        Human-readable description of the preprocessing step performed.
-    logger : Optional[Logger]
-        If provided, `logger.info` is used; otherwise the message is printed.
-    """
+    """Creates a message describing the applied preprocessing step and outputs it."""
     message = f"[preprocess_data] {step}"
     if logger is not None:
         logger.info(message)
@@ -39,40 +30,16 @@ def preprocess_data(
     cols_to_drop: list[str] = None
 ) -> pd.DataFrame:
     """
-    Run the full preprocessing sequence on a dataframe.
+    Preprocess the data by handling missing values, encoding categorical variables,
+    and performing feature engineering.
+    Runs each of the preprocessing steps in sequence, ensuring that the data is clean and ready for modeling.
+    Feeds from the pipeline/preprocessing_pipeline, which contains modular functions for each preprocessing step, such as handling missing values and encoding categorical variables.
 
-    The function applies the project canonical sequence:
-      0) copy input
-      1) drop user-specified columns
-      2) mask incoherent / invalid values
-      3) impute missing values
-      4) handle outliers (rescale or split)
-      5) optional encoding (one-hot or label)
+    Parameters:
+    data (pd.DataFrame): The input DataFrame to preprocess.
 
-    Parameters
-    ----------
-    data_original : pd.DataFrame
-        Raw input dataframe to preprocess. The function works on a copy.
-    outlier_columns : list[str] | None
-        Explicit list of columns to consider for outlier handling. If None the
-        pipeline will detect candidate columns automatically.
-    outlier_method : str
-        One of "rescale" or "split". "rescale" will transform outlier values,
-        "split" will partition the dataset between common and outlier rows.
-    IQR_value : float
-        Multiplier for the inter-quartile range when detecting outliers.
-    encode : str | None
-        If "onehot" or "label" the corresponding encoding is applied.
-    logger : Optional[Logger]
-        Logger to record preprocessing steps; if None messages are printed.
-    cols_to_drop : list[str] | None
-        Optional list of columns to remove before preprocessing.
-
-    Returns
-    -------
-    pd.DataFrame
-        A new dataframe that has been cleaned and transformed and is ready for
-        modeling with scikit-learn pipelines.
+    Returns:
+    pd.DataFrame: The preprocessed DataFrame.
     """
     
 
@@ -158,7 +125,6 @@ def preprocess_data(
     'URBANICITY': 'most_frequent'
     })
 
-
     # 4 - Handle Outliers
 
     log_preprocessing_step("Detecting outlier columns", logger=logger)
@@ -183,7 +149,6 @@ def preprocess_data(
     float32_max = np.finfo(np.float32).max
     data[numeric_columns] = data[numeric_columns].mask(data[numeric_columns].abs() > float32_max, np.nan)
 
-        
         
     # 5 - Encode variables
     log_preprocessing_step("Encoding categorical variables", logger=logger)
