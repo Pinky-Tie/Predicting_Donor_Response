@@ -62,3 +62,15 @@ result: 0.42084
 **Model:** DecisionTree  
 **F1 Score (val):** 0.3969  
 **Parameters:** {'max_depth': 3, 'min_samples_split': 9, 'min_samples_leaf': 26, 'max_features': 'sqrt'}  
+
+---
+**Date:** 2026-05-29 10:40  
+**Model:** DecisionTree  
+**F1 Score (val):** 0.3806  
+**Parameters:** {'max_depth': 4, 'min_samples_split': 7, 'min_samples_leaf': 22, 'max_features': None}  
+
+---
+**Date:** 2026-05-29 12:38  
+**Model:** DecisionTree  
+**F1 Score (val):** 0.3759  
+**Parameters:** {'max_depth': 4, 'min_samples_split': 12, 'min_samples_leaf': 21, 'max_features': 'sqrt'}  

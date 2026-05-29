@@ -95,3 +95,98 @@ def impute_columns(data: pd.DataFrame, dict: dict[str, str]) -> pd.DataFrame:
         result[column] = imputed
 
     return result
+
+def treat_mnar(
+    df: pd.DataFrame,
+    inplace: bool = False,
+) -> pd.DataFrame:
+    """
+    Apply targeted imputation for the three confirmed MNAR variables.
+
+    A binary missingness indicator ({COL}_MISSING, int8) is created for each
+    variable BEFORE imputation, so the full missing set is captured. These
+    indicators are kept in the dataframe as features for downstream models.
+
+    Variables treated
+    -----------------
+    WEALTH_RATING (46 % missing) — strong MNAR (AUC 0.896)
+        Missing because the enrichment vendor cannot score low-value / short-
+        tenure donors. Filled with 0 (valid domain minimum) to avoid inflating
+        apparent wealth for the lowest-engagement segment.
+
+    MONTHS_SINCE_LAST_PROM_RESP (3.28 % missing) — MNAR (AUC 0.702)
+        Missingness associated with recent gift behaviour, consistent with
+        CRM logging gaps for less-engaged donors. Filled with the median.
+
+    DONOR_AGE (26 % missing) — conservative MNAR (AUC 0.613)
+        The numeric logistic regression underestimates this signal because the
+        primary driver (HOME_OWNER) is categorical. Manual analysis confirms a
+        4× missingness gap between renters (44 %) and homeowners (11 %),
+        consistent with structural absence from property records.
+        Imputed with stratified median per HOME_OWNER x URBANICITY cell.
+        Fallback chain: HOME_OWNER-only median → global median.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Frame after invalid value cleaning, before generic imputation.
+    inplace : bool
+        If False (default) operate on a copy.
+
+    Returns
+    -------
+    pd.DataFrame
+        Same frame with three _MISSING indicator columns added and the three
+        MNAR columns imputed.
+    """
+    out = df if inplace else df.copy()
+
+    # ------------------------------------------------------------------
+    # WEALTH_RATING — fill with domain minimum + indicator
+    # ------------------------------------------------------------------
+    if "WEALTH_RATING" in out.columns:
+        out["WEALTH_RATING_MISSING"] = out["WEALTH_RATING"].isna().astype("int8")
+        out["WEALTH_RATING"] = out["WEALTH_RATING"].fillna(0)
+
+    # ------------------------------------------------------------------
+    # MONTHS_SINCE_LAST_PROM_RESP — fill with median + indicator
+    # ------------------------------------------------------------------
+    if "MONTHS_SINCE_LAST_PROM_RESP" in out.columns:
+        out["MONTHS_SINCE_LAST_PROM_RESP_MISSING"] = (
+            out["MONTHS_SINCE_LAST_PROM_RESP"].isna().astype("int8")
+        )
+        _median = out["MONTHS_SINCE_LAST_PROM_RESP"].dropna().median()
+        out["MONTHS_SINCE_LAST_PROM_RESP"] = (
+            out["MONTHS_SINCE_LAST_PROM_RESP"].fillna(_median)
+        )
+
+    # ------------------------------------------------------------------
+    # DONOR_AGE — stratified median imputation + indicator
+    # ------------------------------------------------------------------
+    if "DONOR_AGE" in out.columns:
+        out["DONOR_AGE_MISSING"] = out["DONOR_AGE"].isna().astype("int8")
+
+        _age_medians = (
+            out.dropna(subset=["DONOR_AGE"])
+            .groupby(["HOME_OWNER", "URBANICITY"], observed=True)["DONOR_AGE"]
+            .median()
+        )
+        _hw_medians = (
+            out.dropna(subset=["DONOR_AGE"])
+            .groupby("HOME_OWNER", observed=True)["DONOR_AGE"]
+            .median()
+        )
+        _global_age = out["DONOR_AGE"].dropna().median()
+
+        def _impute_age(row):
+            key = (row.get("HOME_OWNER"), row.get("URBANICITY"))
+            if key in _age_medians.index:
+                return _age_medians[key]
+            hw = _hw_medians.get(row.get("HOME_OWNER"))
+            return hw if pd.notna(hw) else _global_age
+
+        _mask = out["DONOR_AGE_MISSING"] == 1
+        if _mask.any():
+            out.loc[_mask, "DONOR_AGE"] = out[_mask].apply(_impute_age, axis=1)
+
+    return out
