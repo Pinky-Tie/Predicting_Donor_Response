@@ -3,6 +3,12 @@
 **Data Mining II – Group Project (2025/2026)**  
 Nova Information Management School – Universidade Nova de Lisboa
 
+**Group Member Contribution**
+
+Francisco Gomes (25%), Margarida Marchão (25%), Marta Alves (25%), Pedro Coimbras (25%)
+
+Equally contributed to the development of the project
+
 ## Overview
 
 Nonprofit organizations often struggle with decreasing engagement in fundraising campaigns due to donor fatigue caused by repeated and generic solicitations. The **Civic Support Alliance (CSA)** aims to modernize its outreach strategy by using data-driven methods to identify individuals most likely to respond positively to donation requests.
